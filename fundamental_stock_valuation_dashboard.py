@@ -1,24 +1,9 @@
 #FUNDAMENTAL STOCK VALUATION DASHBOARD
 
-#Objetivos:
-#1. Obter os dados do site Fundamentus por meio de uma API: https://www.fundamentus.com.br/
-#2. Separar as empresas (tikers) por setor e subsetor
-#3. Criar a média por indicador, por subsetor
-#4. Criar painel mostrando a comparação entre cada ticker e a média por setor
-#5. Criar painel de avaliação de metas por indicador/ticker ~ ranking
-#6. importante colocar a data em que estamos vendo o dash?
-#7. Guardar histórico para criar métricas de evolução temporal?
-
-
-#tabela resumo usando o go.Table()
-#callbacks linkando o input do usuário para setar metas por indicador e por setor
-
-
-#Readme:
-#Instalar o fundamentus API: pip install fundamentus
-#Instalar o plotly
-#Instalar o dash
-#Instalar o dash_bootstrap_components
+# The program build a dashboard using dash e plotly to analyze fundamental financial data informations by companies listed
+# in Brazilian stock market, source: https://www.fundamentus.com.br/).
+# The dashboard shows companies by each indicator and the correspondent average. In addition, it's possible downloading to excel file and 
+# updating sector and subsector data by demand.
 
 #Import modules:
 import pandas as pd
@@ -29,9 +14,8 @@ import plotly.express as px
 import plotly.graph_objs as go
 
 
-# Adding External CSS/JavaScript:
-
-# external JavaScript files
+# Adding External CSS/JavaScript to customize layout:
+# external JavaScript files:
 external_scripts = [
     'https://www.google-analytics.com/analytics.js',
     {'src': 'https://cdn.polyfill.io/v2/polyfill.min.js'},
@@ -39,10 +23,9 @@ external_scripts = [
         'src': 'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.10/lodash.core.js',
         'integrity': 'sha256-Qqd/EfdABZUcAxjOkMi8eGEivtdTkh3b65xCZL4qAQA=',
         'crossorigin': 'anonymous'
-    }
-]
+    }]
 
-# external CSS stylesheets
+# external CSS stylesheets:
 external_stylesheets = [
     'https://codepen.io/chriddyp/pen/bWLwgP.css',
     {
@@ -50,58 +33,59 @@ external_stylesheets = [
         'rel': 'stylesheet',
         'integrity': 'sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO',
         'crossorigin': 'anonymous'
-    }
-]
+    }]
 
 
+# App Create:
 app = Dash(__name__,external_scripts=external_scripts,external_stylesheets=external_stylesheets)
 
+
+# Get and process data:
 
 # Read table setor_table.xlsx:
 df_setor = pd.read_excel('setor_table.xlsx')
 
-# Obter um data frame com os indicadores por ticker:
+# Get data frame indicators by ticker:
 df_kpis = fundamentus.get_resultado()
 df_kpis['ticker'] = df_kpis.axes[0]
 
-# Juntar todas as informações em um único data frame:
+# Combine infos in a data frame: 
 df = pd.merge(df_kpis, df_setor, on='ticker')
 
-# Reordenando as colunas do data frame:
+# Reorder data frame columns:
 df = df[['ticker', 'empresa', 'setor','subsetor','cotacao', 'pl', 'pvp', 
          'psr', 'dy', 'pa', 'pcg', 'pebit', 'pacl','evebit', 'evebitda',
          'mrgebit', 'mrgliq', 'roic', 'roe', 'liqc',
          'liq2m', 'patrliq', 'divbpatr', 'c5y', ]]
 
-# Padronizando o conteudoo do data frame para 4 casas decimais:
+# Standardize for 4 decimal plates:
 df = df.round(4)
 
-
-# Funçao apoio para criar linha média no gráfico:
+# Function to create mean line in visualization graph:
 def line_mean(indicador,dataframe):
     x=[]
     for i in range(len(df)):
         x.append(dataframe[indicador].mean())
     return x
 
-# Lista de subsetores:
+# Create subsetores list:
 subsetores = ["Todos os subsetores"]
 lista_subsetores = df.subsetor.dropna().unique().tolist()
 lista_subsetores.sort() 
 for k in lista_subsetores:
     subsetores.append(k)
 
-# Gráficos:
-# Função para construir os gráficos por indicador:
+# Graphs:
+# Function to build graph by indicator:
 def graph_build(dataframe,indicador):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=dataframe.ticker, y=dataframe[indicador], marker_color='LightBlue', marker_size=10, mode='markers', name='empresas'))
     fig.add_trace(go.Scatter(x=dataframe.ticker, y=line_mean(indicador,dataframe), line_color='salmon', line_dash="dot", mode='lines', name='média'))
     fig.update_layout(legend=dict(orientation="h",yanchor="bottom",y=1.02,xanchor="right",x=1))
-    fig.update_layout(title=indicador,plot_bgcolor='lavender')
+    fig.update_layout(plot_bgcolor='lavender')
     return fig
 
-# Gráficos por indicador
+# Graphs by indicator:
 fig_cotacao = graph_build(df,'cotacao')
 fig_pl = graph_build(df,'pl')
 fig_pvp = graph_build(df,'pvp')
@@ -123,45 +107,42 @@ fig_patrliq = graph_build(df,'patrliq')
 fig_divbpatr = graph_build(df,'divbpatr')
 fig_c5y = graph_build(df,'c5y')
 
-# Tabela resultado:
-# Função para gerar a tabela:
-#def table_build(dataframe):
-    #fig = go.Figure(data=[go.Table(
-       # header=dict(values=list(dataframe.columns),fill_color='grey',align='center'),
-        #cells=dict(values=[dataframe.ticker, dataframe.empresa, dataframe.setor, dataframe.subsetor, dataframe.cotacao, dataframe.pl,
-        #dataframe.pvp, dataframe.psr,dataframe.dy, dataframe.pa, dataframe.pcg, dataframe.pebit, dataframe.pacl, dataframe.evebit, 
-        #dataframe.evebitda, dataframe.mrgebit,dataframe.mrgliq, dataframe.roic, dataframe.roe,dataframe.liqc, dataframe.liq2m, 
-        #dataframe.patrliq, dataframe.divbpatr, dataframe.c5y],fill_color='lavender',align='center'),
-        #columnwidth=[100])])
-   # return fig
 
-#table_summary = table_build(df)
-
-# LAY OUT DASH:
+# Lay out Create:
 app.layout = dbc.Container(html.Div(
     [
         dbc.Row(html.Div(html.Header('FUNDAMENTAL STOCK VALUATION DASHBOARD')),
-                style={'color':'gray','fontSize':48,'marginTop':50,'marginBotton':150}
+                style={'color':'gray','fontSize':48,'marginTop':50,'marginBotton':100}
         ),
         dbc.Row(
             [
-                dbc.Col(html.Div(html.H1('Some comments')),style={'fontSize':22,'color':'LightGray'},width='auto'),#olhar https://dash-bootstrap-components.opensource.faculty.ai/docs/components/layout/  
+                dcc.Markdown('''
+                >
+                >## Dashboard para analisar dados de informações financeiras e fundamentalistas das empresas listadas na Bovespa 
+                >## disponíveis no site Fundamentos (https://www.fundamentus.com.br/).
+                >
+                ''')
             ]
         ),
         dbc.Row(
             [
-                dbc.Col(html.Div(dcc.Dropdown(subsetores,value="Todos os subsetores",id='drop-subsetores',style={'backgroundColor':'LightBlue','fontSize':14})),width=8),
+                dbc.Col(html.Div(dcc.Dropdown(subsetores,value="Todos os subsetores",id='drop-subsetores',
+                    style={'backgroundColor':'LightBlue','fontSize':14})),width=8),
                 dbc.Col(html.Div([
-                    html.Button('Atualizar',id='button_atualizar', n_clicks=0,style={'backgroundColor':'LightBlue','fontSize':14}),
-                    html.P('Atualizar tabela de setores e subsetores',style={'fontSize':12,'color':'Gray'}),
+                    html.Button('Atualizar',id='button_atualizar', n_clicks=0,
+                        style={'backgroundColor':'LightBlue','fontSize':14}),
+                    html.P('Atualizar tabela de setores e subsetores',
+                        style={'fontSize':12,'color':'Gray'}),
                     html.Div(id='output_atualizar')
                     ]),width=2),
                 dbc.Col(html.Div([
-                    html.Button('Exportar',id='button_exportar', n_clicks=0, style={'backgroundColor':'LightBlue','fontSize':14}),
-                    html.P('Exportar arquivo excel (.xlsx)',style={'fontSize':12,'color':'Gray'}),
+                    html.Button('Exportar',id='button_exportar', n_clicks=0, 
+                        style={'backgroundColor':'LightBlue','fontSize':14}),
+                    html.P('Exportar arquivo excel (.xlsx)',
+                        style={'fontSize':12,'color':'Gray'}),
                     html.Div(id='output_exportar')
                     ]),width=2),
-            ],class_name="g-0",style={'marginBottom':50, 'marginTop':50}
+            ],class_name="g-1",style={'marginTop':50}
         ),
         dbc.Row(
             html.Div([
@@ -172,51 +153,101 @@ app.layout = dbc.Container(html.Div(
                 fixed_rows={'headers':True},
                 fixed_columns={'headers': True, 'data': 2},
                 style_table={'minWidth': 1100,'maxHeight': 400,'overflowX':'auto','overflowY':'auto'},
-                style_cell={'fontSize':14,'textAlign':'center','height':'auto','minWidth': '140px', 'width': '140px', 'maxWidth': '140px','whiteSpace': 'normal'},
-                style_header={'color':'gray','fontSize':16,'fontWeight':'bold','backgroundColor':'LightBlue','border':'1px solid white'},
+                style_cell={'fontSize':14,'textAlign':'center','height':'auto',
+                            'minWidth': '140px', 'width': '140px', 'maxWidth': '140px','whiteSpace': 'normal'},
+                style_header={'color':'gray','fontSize':16,'fontWeight':'bold','backgroundColor':'LightBlue',
+                            'border':'1px solid white'},
                 style_data={'backgroundColor':'lavender','border':'1px solid white'}
                 )
-            ]), style={'marginBottom':50, 'marginTop':50}
+            ])
         ),
         dbc.Row(
             [
-                dbc.Col(html.Div([html.H4(children='Cotação',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_cotacao', figure=fig_cotacao)])),
-                dbc.Col(html.Div([html.H4(children='P/L',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pl', figure=fig_pl)]))
+                dbc.Col(html.Div([html.H4(children='Cotação',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_cotacao', figure=fig_cotacao)])),
+                dbc.Col(html.Div([html.H4(children='P/L',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_pl', figure=fig_pl)]))
             ]
         ),
         dbc.Row(
             [
-                dbc.Col(html.Div([html.H4(children='P/VP',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pvp', figure=fig_pvp)])),
-                dbc.Col(html.Div([html.H4(children='PSR',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_psr', figure=fig_psr)]))
+                dbc.Col(html.Div([html.H4(children='P/VP',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_pvp', figure=fig_pvp)])),
+                dbc.Col(html.Div([html.H4(children='PSR',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_psr', figure=fig_psr)]))
             ]
         ),       
         dbc.Row(
             [
-                dbc.Col(html.Div([html.H4(children='Div. Yield',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_dy', figure=fig_dy)])),
-                dbc.Col(html.Div([html.H4(children='P/Ativo',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pa', figure=fig_pa)]))
+                dbc.Col(html.Div([html.H4(children='Div. Yield',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_dy', figure=fig_dy)])),
+                dbc.Col(html.Div([html.H4(children='P/Ativo',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_pa', figure=fig_pa)]))
             ]
         ),
         dbc.Row(
             [
-                dbc.Col(html.Div([html.H4(children='P/Cap. Giro',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pcg', figure=fig_pcg)])),
-                dbc.Col(html.Div([html.H4(children='P/EBIT',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pebit', figure=fig_pebit)]))
+                dbc.Col(html.Div([html.H4(children='P/Cap. Giro',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_pcg', figure=fig_pcg)])),
+                dbc.Col(html.Div([html.H4(children='P/EBIT',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_pebit', figure=fig_pebit)]))
             ]
         ),
         dbc.Row(
             [
-                dbc.Col(html.Div([html.H4(children='P/Ativo Circ. Liq.',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pacl', figure=fig_pacl)])),
-                dbc.Col(html.Div([html.H4(children='EV/EBIT',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_evebit', figure=fig_evebit)]))
+                dbc.Col(html.Div([html.H4(children='P/Ativo Circ. Liq.',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_pacl', figure=fig_pacl)])),
+                dbc.Col(html.Div([html.H4(children='EV/EBIT',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_evebit', figure=fig_evebit)]))
             ]
         ),
-
-
+        dbc.Row(
+            [
+                dbc.Col(html.Div([html.H4(children='EV/EBITDA',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_evebitda', figure=fig_evebitda)])),
+                dbc.Col(html.Div([html.H4(children='Mrg Ebit',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_mrgebit', figure=fig_mrgebit)]))
+            ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(html.Div([html.H4(children='Mrg Líq',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_mrgliq', figure=fig_mrgliq)])),
+                dbc.Col(html.Div([html.H4(children='ROIC',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_roic', figure=fig_roic)]))
+            ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(html.Div([html.H4(children='ROE',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_roe', figure=fig_roe)])),
+                dbc.Col(html.Div([html.H4(children='Líq Corr',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_liqc', figure=fig_liqc)]))
+            ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(html.Div([html.H4(children='Líq 2 meses',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_liq2m', figure=fig_liq2m)])),
+                dbc.Col(html.Div([html.H4(children='Patrim Líq',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_patrliq', figure=fig_patrliq)]))
+            ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(html.Div([html.H4(children='Dív Brut/Patrim',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_divbpatr', figure=fig_divbpatr)])),
+                dbc.Col(html.Div([html.H4(children='Cresc Rec 5a',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),
+                dcc.Graph(id='graph_c5y', figure=fig_c5y)]))
+            ]
+        ),
     ]
 )
 )
 
-# DASH CALLBACKS:
+# Dash Callbacks:
 
-# Chama a atualização do script de atualização da tabela de setores e subsetores:
+# Callback to update Tabela de setores e subsetores:
 @app.callback(
     Output('output_atualizar','children'),
     Input('button_atualizar','n_clicks')
@@ -225,7 +256,7 @@ def update_output(n_clicks):
     if  n_clicks == 1:
         exec(open('setor_update.py').read()) # Run script setor_update.py to update Setores e Subsetores Table by company
 
-# Chama o export excel:
+# Callback to export excel:
 @app.callback(
     Output('output_exportar','children'),
     Input('button_exportar','n_clicks')
@@ -235,8 +266,7 @@ def update_output(n_clicks):
         file_name = 'table_export.xlsx'
         df.to_excel(file_name,index = False)
 
-
-# Atualiza tabela de acordo com o subsetor:
+# Callback to update table by setor:
 @app.callback(
     Output('table-summary','data'),
     Input('drop-subsetores','value')
@@ -249,8 +279,7 @@ def update_output(value):
         data=df_subsetor.to_dict('records')
     return data
 
-# Atualiza gráficos:
-
+# Update graphs by indicator and setor:
 @app.callback(
     Output('graph_cotacao','figure'),
     Input('drop-subsetores','value')
@@ -371,17 +400,125 @@ def update_output(value):
         fig_evebit = graph_build(df_subsetor,'evebit')
     return fig_evebit
 
-    
+@app.callback(
+    Output('graph_evebitda','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_evebitda = graph_build(df,'evebitda')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_evebitda = graph_build(df_subsetor,'evebitda')
+    return fig_evebitda
 
+@app.callback(
+    Output('graph_mrgebit','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_mrgebit = graph_build(df,'mrgebit')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_mrgebit = graph_build(df_subsetor,'mrgebit')
+    return fig_mrgebit
 
+@app.callback(
+    Output('graph_mrgliq','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_mrgliq = graph_build(df,'mrgliq')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_mrgliq = graph_build(df_subsetor,'mrgliq')
+    return fig_mrgliq
 
+@app.callback(
+    Output('graph_roic','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_roic = graph_build(df,'roic')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_roic = graph_build(df_subsetor,'roic')
+    return fig_roic
 
+@app.callback(
+    Output('graph_roe','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_roe = graph_build(df,'roe')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_roe = graph_build(df_subsetor,'roe')
+    return fig_roe
 
+@app.callback(
+    Output('graph_liqc','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_liqc = graph_build(df,'liqc')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_liqc = graph_build(df_subsetor,'liqc')
+    return fig_liqc
 
+@app.callback(
+    Output('graph_liq2m','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_liq2m = graph_build(df,'liq2m')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_liq2m = graph_build(df_subsetor,'liq2m')
+    return fig_liq2m
 
+@app.callback(
+    Output('graph_patrliq','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_patrliq = graph_build(df,'patrliq')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_patrliq = graph_build(df_subsetor,'patrliq')
+    return fig_patrliq
 
+@app.callback(
+    Output('graph_divbpatr','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_divbpatr = graph_build(df,'divbpatr')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_divbpatr = graph_build(df_subsetor,'divbpatr')
+    return fig_divbpatr
 
-
+@app.callback(
+    Output('graph_c5y','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_c5y = graph_build(df,'c5y')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_c5y = graph_build(df_subsetor,'c5y')
+    return fig_c5y
 
 if __name__ == '__main__':
     app.run_server(debug=True)
