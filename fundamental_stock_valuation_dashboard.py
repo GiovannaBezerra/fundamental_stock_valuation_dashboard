@@ -23,7 +23,7 @@
 #Import modules:
 import pandas as pd
 import fundamentus
-from dash import Dash, html, dcc, Input, Output
+from dash import Dash, html, dcc, dash_table, Input, Output
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objs as go
@@ -56,10 +56,6 @@ external_stylesheets = [
 
 app = Dash(__name__,external_scripts=external_scripts,external_stylesheets=external_stylesheets)
 
-# Run script setor_update.py to update Setores e Subsetores Table by company:
-trigger = False
-if trigger is True:
-    exec(open('setor_update.py').read())
 
 # Read table setor_table.xlsx:
 df_setor = pd.read_excel('setor_table.xlsx')
@@ -70,6 +66,16 @@ df_kpis['ticker'] = df_kpis.axes[0]
 
 # Juntar todas as informações em um único data frame:
 df = pd.merge(df_kpis, df_setor, on='ticker')
+
+# Reordenando as colunas do data frame:
+df = df[['ticker', 'empresa', 'setor','subsetor','cotacao', 'pl', 'pvp', 
+         'psr', 'dy', 'pa', 'pcg', 'pebit', 'pacl','evebit', 'evebitda',
+         'mrgebit', 'mrgliq', 'roic', 'roe', 'liqc',
+         'liq2m', 'patrliq', 'divbpatr', 'c5y', ]]
+
+# Padronizando o conteudoo do data frame para 4 casas decimais:
+df = df.round(4)
+
 
 # Funçao apoio para criar linha média no gráfico:
 def line_mean(indicador,dataframe):
@@ -85,15 +91,14 @@ lista_subsetores.sort()
 for k in lista_subsetores:
     subsetores.append(k)
 
-
 # Gráficos:
 # Função para construir os gráficos por indicador:
 def graph_build(dataframe,indicador):
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=dataframe.ticker, y=dataframe[indicador], marker_color='LightSkyBlue', mode='markers', name='empresas'))
-    fig.add_trace(go.Scatter(x=dataframe.ticker, y=line_mean(indicador,dataframe), line_color='red', mode='lines', name='média'))
+    fig.add_trace(go.Scatter(x=dataframe.ticker, y=dataframe[indicador], marker_color='LightBlue', marker_size=10, mode='markers', name='empresas'))
+    fig.add_trace(go.Scatter(x=dataframe.ticker, y=line_mean(indicador,dataframe), line_color='salmon', line_dash="dot", mode='lines', name='média'))
     fig.update_layout(legend=dict(orientation="h",yanchor="bottom",y=1.02,xanchor="right",x=1))
-    fig.update_layout(title=indicador)
+    fig.update_layout(title=indicador,plot_bgcolor='lavender')
     return fig
 
 # Gráficos por indicador
@@ -119,20 +124,18 @@ fig_divbpatr = graph_build(df,'divbpatr')
 fig_c5y = graph_build(df,'c5y')
 
 # Tabela resultado:
+# Função para gerar a tabela:
+#def table_build(dataframe):
+    #fig = go.Figure(data=[go.Table(
+       # header=dict(values=list(dataframe.columns),fill_color='grey',align='center'),
+        #cells=dict(values=[dataframe.ticker, dataframe.empresa, dataframe.setor, dataframe.subsetor, dataframe.cotacao, dataframe.pl,
+        #dataframe.pvp, dataframe.psr,dataframe.dy, dataframe.pa, dataframe.pcg, dataframe.pebit, dataframe.pacl, dataframe.evebit, 
+        #dataframe.evebitda, dataframe.mrgebit,dataframe.mrgliq, dataframe.roic, dataframe.roe,dataframe.liqc, dataframe.liq2m, 
+        #dataframe.patrliq, dataframe.divbpatr, dataframe.c5y],fill_color='lavender',align='center'),
+        #columnwidth=[100])])
+   # return fig
 
-df_table = pd.read_csv('https://gist.githubusercontent.com/chriddyp/c78bf172206ce24f77d6363a2d754b59/raw/c353e8ef842413cae56ae3920b8fd78468aa4cb2/usa-agricultural-exports-2011.csv')
-
-def generate_table(dataframe, max_rows=5):
-    return html.Table([
-        html.Thead(
-            html.Tr([html.Th(col) for col in dataframe.columns])
-        ),
-        html.Tbody([
-            html.Tr([
-                html.Td(dataframe.iloc[i][col]) for col in dataframe.columns
-            ]) for i in range(min(len(dataframe), max_rows))
-        ])
-    ])
+#table_summary = table_build(df)
 
 # LAY OUT DASH:
 app.layout = dbc.Container(html.Div(
@@ -142,67 +145,112 @@ app.layout = dbc.Container(html.Div(
         ),
         dbc.Row(
             [
-                dbc.Col(html.Div(html.H1('Some comments'),),style={'color': 'black',"width":"100%"},width='auto',align='start'),#olhar https://dash-bootstrap-components.opensource.faculty.ai/docs/components/layout/  
+                dbc.Col(html.Div(html.H1('Some comments')),style={'fontSize':22,'color':'LightGray'},width='auto'),#olhar https://dash-bootstrap-components.opensource.faculty.ai/docs/components/layout/  
             ]
         ),
         dbc.Row(
             [
-                dbc.Col(html.Div(dcc.Dropdown(subsetores,value="Todos os subsetores",id='drop-subsetores')),width=9,align='start'),
+                dbc.Col(html.Div(dcc.Dropdown(subsetores,value="Todos os subsetores",id='drop-subsetores',style={'backgroundColor':'LightBlue','fontSize':14})),width=8),
                 dbc.Col(html.Div([
-                    html.Button('Atualizar tabelas',id='button_atualizar_tabelas', n_clicks=0),
-                    html.P('Atualizar tabela de setores e subsetores')]),style={"width":"100%"},width=3,align='end')
-            ],justify='between',style={'marginBottom':50, 'marginTop':50}
+                    html.Button('Atualizar',id='button_atualizar', n_clicks=0,style={'backgroundColor':'LightBlue','fontSize':14}),
+                    html.P('Atualizar tabela de setores e subsetores',style={'fontSize':12,'color':'Gray'}),
+                    html.Div(id='output_atualizar')
+                    ]),width=2),
+                dbc.Col(html.Div([
+                    html.Button('Exportar',id='button_exportar', n_clicks=0, style={'backgroundColor':'LightBlue','fontSize':14}),
+                    html.P('Exportar arquivo excel (.xlsx)',style={'fontSize':12,'color':'Gray'}),
+                    html.Div(id='output_exportar')
+                    ]),width=2),
+            ],class_name="g-0",style={'marginBottom':50, 'marginTop':50}
         ),
         dbc.Row(
             html.Div([
-            html.H4(children='Tabela Resumo'),
-            generate_table(df_table)
+            html.H4(children='Tabela Resumo',style={'fontSize':22,'color':'Gray'}),
+            dash_table.DataTable(
+                data=df.to_dict('records'),columns=[{'name': i, 'id': i} for i in df.columns],
+                id='table-summary',
+                fixed_rows={'headers':True},
+                fixed_columns={'headers': True, 'data': 2},
+                style_table={'minWidth': 1100,'maxHeight': 400,'overflowX':'auto','overflowY':'auto'},
+                style_cell={'fontSize':14,'textAlign':'center','height':'auto','minWidth': '140px', 'width': '140px', 'maxWidth': '140px','whiteSpace': 'normal'},
+                style_header={'color':'gray','fontSize':16,'fontWeight':'bold','backgroundColor':'LightBlue','border':'1px solid white'},
+                style_data={'backgroundColor':'lavender','border':'1px solid white'}
+                )
             ]), style={'marginBottom':50, 'marginTop':50}
         ),
         dbc.Row(
             [
-                dbc.Col(html.Div([html.H4(children='Cotação',style={'textAlign': 'center'}),dcc.RangeSlider(0,10,1, value=[1,2], id='slider_cotacao')])),
-                dbc.Col(html.Div([html.H4(children='P/L',style={'textAlign': 'center'}),dcc.RangeSlider(0,10,1, value=[1,2], id='slider_pl')]))
+                dbc.Col(html.Div([html.H4(children='Cotação',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_cotacao', figure=fig_cotacao)])),
+                dbc.Col(html.Div([html.H4(children='P/L',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pl', figure=fig_pl)]))
             ]
         ),
         dbc.Row(
             [
-                dbc.Col(html.Div(dcc.Graph(id='graph_cotacao', figure=fig_cotacao))),
-                dbc.Col(html.Div(dcc.Graph(id='graph_pl', figure=fig_pl)))
+                dbc.Col(html.Div([html.H4(children='P/VP',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pvp', figure=fig_pvp)])),
+                dbc.Col(html.Div([html.H4(children='PSR',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_psr', figure=fig_psr)]))
+            ]
+        ),       
+        dbc.Row(
+            [
+                dbc.Col(html.Div([html.H4(children='Div. Yield',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_dy', figure=fig_dy)])),
+                dbc.Col(html.Div([html.H4(children='P/Ativo',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pa', figure=fig_pa)]))
+            ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(html.Div([html.H4(children='P/Cap. Giro',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pcg', figure=fig_pcg)])),
+                dbc.Col(html.Div([html.H4(children='P/EBIT',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pebit', figure=fig_pebit)]))
+            ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(html.Div([html.H4(children='P/Ativo Circ. Liq.',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_pacl', figure=fig_pacl)])),
+                dbc.Col(html.Div([html.H4(children='EV/EBIT',style={'fontSize':22,'color':'Gray','textAlign': 'center'}),dcc.Graph(id='graph_evebit', figure=fig_evebit)]))
+            ]
+        ),
 
-            ]
-        ),
-        dbc.Row(
-            [
-                dbc.Col(html.Div([html.H4(children='P/VP',style={'textAlign': 'center'}),dcc.RangeSlider(0,10,1, value=[1,2], id='slider_pvp')])),
-                dbc.Col(html.Div([html.H4(children='PSR',style={'textAlign': 'center'}),dcc.RangeSlider(0,10,1, value=[1,2], id='slider_psr')]))
-            ]
-        ),
-        dbc.Row(
-            [
-                dbc.Col(html.Div(dcc.Graph(id='graph_pvp', figure=fig_pvp))),
-                dbc.Col(html.Div(dcc.Graph(id='graph_psr', figure=fig_psr)))
 
-            ]
-        ),
-        dbc.Row(
-            [
-                dbc.Col(html.Div([html.H4(children='Div.Yield',style={'textAlign': 'center'}),dcc.RangeSlider(0,10,1, value=[1,2], id='slider_dy')])),
-                dbc.Col(html.Div([html.H4(children='P/Ativo',style={'textAlign': 'center'}),dcc.RangeSlider(0,10,1, value=[1,2], id='slider_pa')]))
-            ]
-        ),
-        dbc.Row(
-            [
-                dbc.Col(html.Div(dcc.Graph(id='graph_dy', figure=fig_dy))),
-                dbc.Col(html.Div(dcc.Graph(id='graph_pa', figure=fig_pa)))
-
-            ]
-        ),
     ]
 )
 )
 
 # DASH CALLBACKS:
+
+# Chama a atualização do script de atualização da tabela de setores e subsetores:
+@app.callback(
+    Output('output_atualizar','children'),
+    Input('button_atualizar','n_clicks')
+)
+def update_output(n_clicks):
+    if  n_clicks == 1:
+        exec(open('setor_update.py').read()) # Run script setor_update.py to update Setores e Subsetores Table by company
+
+# Chama o export excel:
+@app.callback(
+    Output('output_exportar','children'),
+    Input('button_exportar','n_clicks')
+)
+def update_output(n_clicks):
+    if n_clicks == 1:
+        file_name = 'table_export.xlsx'
+        df.to_excel(file_name,index = False)
+
+
+# Atualiza tabela de acordo com o subsetor:
+@app.callback(
+    Output('table-summary','data'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        data=df.to_dict('records')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        data=df_subsetor.to_dict('records')
+    return data
+
+# Atualiza gráficos:
+
 @app.callback(
     Output('graph_cotacao','figure'),
     Input('drop-subsetores','value')
@@ -213,7 +261,7 @@ def update_output(value):
     else:
         df_subsetor = df.loc[df['subsetor']==value,:]
         fig_cotacao = graph_build(df_subsetor,'cotacao')
-    return fig_cotacao
+    return fig_cotacao 
 
 @app.callback(
     Output('graph_pl','figure'),
@@ -225,7 +273,7 @@ def update_output(value):
     else:
         df_subsetor = df.loc[df['subsetor']==value,:]
         fig_pl = graph_build(df_subsetor,'pl')
-    return fig_pl   
+    return fig_pl 
 
 @app.callback(
     Output('graph_pvp','figure'),
@@ -237,7 +285,7 @@ def update_output(value):
     else:
         df_subsetor = df.loc[df['subsetor']==value,:]
         fig_pvp = graph_build(df_subsetor,'pvp')
-    return fig_pvp   
+    return fig_pvp
 
 @app.callback(
     Output('graph_psr','figure'),
@@ -249,7 +297,7 @@ def update_output(value):
     else:
         df_subsetor = df.loc[df['subsetor']==value,:]
         fig_psr = graph_build(df_subsetor,'psr')
-    return fig_psr  
+    return fig_psr
 
 @app.callback(
     Output('graph_dy','figure'),
@@ -274,6 +322,62 @@ def update_output(value):
         df_subsetor = df.loc[df['subsetor']==value,:]
         fig_pa = graph_build(df_subsetor,'pa')
     return fig_pa
+
+@app.callback(
+    Output('graph_pcg','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_pcg = graph_build(df,'pcg')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_pcg = graph_build(df_subsetor,'pcg')
+    return fig_pcg
+
+@app.callback(
+    Output('graph_pebit','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_pebit = graph_build(df,'pebit')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_pebit = graph_build(df_subsetor,'pebit')
+    return fig_pebit
+
+@app.callback(
+    Output('graph_pacl','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_pacl = graph_build(df,'pacl')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_pacl = graph_build(df_subsetor,'pacl')
+    return fig_pacl
+
+@app.callback(
+    Output('graph_evebit','figure'),
+    Input('drop-subsetores','value')
+)
+def update_output(value):
+    if value == 'Todos os subsetores':
+        fig_evebit = graph_build(df,'evebit')
+    else:
+        df_subsetor = df.loc[df['subsetor']==value,:]
+        fig_evebit = graph_build(df_subsetor,'evebit')
+    return fig_evebit
+
+    
+
+
+
+
+
+
 
 
 
