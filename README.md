@@ -49,6 +49,6 @@ The dashboard can be accessed now.
 ![img_readme2](https://user-images.githubusercontent.com/44107852/214311416-68664cc2-dacc-4217-8814-fce4b1d74d09.jpg)
 
 
-## Notes and Considerations
+## Notes and considerations
 
 During this development, I've learned how to use Dash and Plotly libraries, which was very challenging for me, in particular because of layout building and callbacks construction.
