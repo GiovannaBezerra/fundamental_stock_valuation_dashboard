@@ -1,5 +1,5 @@
 <img src="https://user-images.githubusercontent.com/44107852/214130084-354b95f2-abbb-43e2-bb5c-783662243ce2.jpg" align="right"
-     alt="Size Limit logo by Anton Lovchikov" width="90" height="90">
+     width="90" height="90">
 # FUNDAMENTAL STOCK VALUATION DASHBOARD
 
 This program was built to analyze fundamental financial data information of companies listed in the Brazilian stock market.
